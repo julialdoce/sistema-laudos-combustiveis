@@ -1,4 +1,4 @@
-// Configuração dos tanques e tipos de combustível
+// Configuração dos tanques e tipos de combustível (com mapeamento adicional)
 const TANQUES = {
     "TQ-11": "Gasolina",
     "TQ-1001": "Diesel S500",
@@ -11,7 +11,9 @@ const TANQUES = {
     "TQ-22": "Diesel Marítimo",
     "TQ-09": "Biodiesel",
     "TQ-14": "Etanol Anidro",
-    "TQ-18": "Etanol Anidro"
+    "TQ-18": "Etanol Anidro",
+    // Mapeamento de tanques alternativos
+    "S-11": "Gasolina"
 };
 
 // Classe para gerenciar os dados
@@ -41,10 +43,10 @@ class GerenciadorLaudos {
         laudo.id = Date.now();
         laudo.dataImportacao = new Date().toISOString();
         laudo.status = 'Pendente';
-
+        
         this.laudos.push(laudo);
         this.salvarDados();
-
+        
         this.mostrarAlerta('success', `Laudo da batelada ${laudo.numeroBatelada} importado com sucesso!`);
         return true;
     }
@@ -76,7 +78,7 @@ class GerenciadorLaudos {
     obterUltimaBatelada(tanque) {
         const laudosTanque = this.laudos.filter(l => l.tanque === tanque);
         if (laudosTanque.length === 0) return null;
-
+        
         return laudosTanque.sort((a, b) => new Date(b.dataLaudo) - new Date(a.dataLaudo))[0];
     }
 
@@ -134,11 +136,11 @@ class GerenciadorLaudos {
     async extrairInformacoesPDF(file) {
         return new Promise((resolve) => {
             const fileReader = new FileReader();
-            fileReader.onload = async function () {
+            fileReader.onload = async function() {
                 try {
                     const typedArray = new Uint8Array(this.result);
                     const pdf = await pdfjsLib.getDocument(typedArray).promise;
-
+                    
                     let textoCompleto = '';
                     for (let i = 1; i <= pdf.numPages; i++) {
                         const page = await pdf.getPage(i);
@@ -159,25 +161,34 @@ class GerenciadorLaudos {
     }
 
     extrairInformacoesTexto(texto, nomeArquivo) {
-        let tanque = null;
-        for (let codigoTanque of Object.keys(TANQUES)) {
-            if (texto.includes(codigoTanque) || nomeArquivo.includes(codigoTanque)) {
-                tanque = codigoTanque;
-                break;
-            }
+        // Padrões para extração do laudo
+        const padraoTanque = /Tanque:\s*([A-Z0-9\-]+)/i;
+        const padraoBatelada = /Batelada:\s*([\w\.]+)/i;
+        const padraoData = /Data de Amostragem:\s*(\d{2}\/\d{2}\/\d{4})/i;
+        const padraoCombustivel = /Descrição da Amostra:\s*([^\n]+)/i;
+
+        // Extrair informações
+        const tanqueMatch = texto.match(padraoTanque);
+        const bateladaMatch = texto.match(padraoBatelada);
+        const dataMatch = texto.match(padraoData);
+        const combustivelMatch = texto.match(padraoCombustivel);
+
+        // Normaliza o código do tanque
+        let tanque = tanqueMatch ? tanqueMatch[1].trim() : null;
+        
+        // Converte padrões alternativos de tanque (como S-11 para TQ-11)
+        if (tanque === "S-11") {
+            tanque = "TQ-11";
         }
 
-        const regexBatelada = /(?:batelada|lote|batch)[:\s]*([A-Z0-9\-]+)/i;
-        const matchBatelada = texto.match(regexBatelada) || nomeArquivo.match(/([A-Z0-9\-]{3,})/);
-        const numeroBatelada = matchBatelada ? matchBatelada[1] : `BATCH_${Date.now()}`;
-
-        const regexData = /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/;
-        const matchData = texto.match(regexData);
-        let dataLaudo = new Date().toISOString().split('T')[0];
-
-        if (matchData) {
-            const [, dia, mes, ano] = matchData;
-            dataLaudo = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+        // Se não encontrou pelo padrão principal, tenta identificar no texto
+        if (!tanque) {
+            for (const codigoTanque of Object.keys(TANQUES)) {
+                if (texto.includes(codigoTanque) || nomeArquivo.includes(codigoTanque)) {
+                    tanque = codigoTanque;
+                    break;
+                }
+            }
         }
 
         if (!tanque) {
@@ -185,12 +196,29 @@ class GerenciadorLaudos {
             return null;
         }
 
+        // Formata a data para YYYY-MM-DD
+        let dataLaudo = dataMatch ? dataMatch[1] : new Date().toLocaleDateString('pt-BR');
+        if (dataLaudo.includes('/')) {
+            const [dia, mes, ano] = dataLaudo.split('/');
+            dataLaudo = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+        }
+
+        // Determina o tipo de combustível
+        let tipoCombustivel = TANQUES[tanque];
+        if (combustivelMatch) {
+            const descricao = combustivelMatch[1].trim();
+            if (descricao.includes("GASOLINA")) tipoCombustivel = "Gasolina";
+            else if (descricao.includes("DIESEL")) tipoCombustivel = "Diesel";
+            else if (descricao.includes("ETANOL")) tipoCombustivel = "Etanol";
+        }
+
         return {
-            tanque,
-            tipoCombustivel: TANQUES[tanque],
-            numeroBatelada,
-            dataLaudo,
-            nomeArquivo
+            tanque: tanque,
+            tipoCombustivel: tipoCombustivel,
+            numeroBatelada: bateladaMatch ? bateladaMatch[1].trim() : `BATCH_${Date.now()}`,
+            dataLaudo: dataLaudo,
+            nomeArquivo: nomeArquivo,
+            textoCompleto: texto
         };
     }
 
@@ -214,14 +242,14 @@ class GerenciadorLaudos {
 
         Object.entries(TANQUES).forEach(([codigoTanque, tipoCombustivel]) => {
             const ultimaBatelada = this.obterUltimaBatelada(codigoTanque);
-
+            
             const tankCard = document.createElement('div');
             tankCard.className = 'tank-card';
-
+            
             let statusInfo = '<span style="color: #95a5a6;">Sem dados</span>';
             let bateladaInfo = 'N/A';
             let dataInfo = 'N/A';
-
+            
             if (ultimaBatelada) {
                 const statusClass = `status-${ultimaBatelada.status.toLowerCase()}`;
                 statusInfo = `<span class="status-badge ${statusClass}">${ultimaBatelada.status}</span>`;
@@ -244,7 +272,7 @@ class GerenciadorLaudos {
                     <strong>Status:</strong> ${statusInfo}
                 </div>
             `;
-
+            
             dashboard.appendChild(tankCard);
         });
     }
@@ -258,7 +286,7 @@ class GerenciadorLaudos {
         laudosOrdenados.forEach(laudo => {
             const row = document.createElement('tr');
             const statusClass = `status-${laudo.status.toLowerCase()}`;
-
+            
             row.innerHTML = `
                 <td><strong>${laudo.tanque}</strong></td>
                 <td>${laudo.tipoCombustivel}</td>
@@ -266,21 +294,83 @@ class GerenciadorLaudos {
                 <td>${new Date(laudo.dataLaudo).toLocaleDateString('pt-BR')}</td>
                 <td><span class="status-badge ${statusClass}">${laudo.status}</span></td>
                 <td>
-                    <button onclick="gerenciador.atualizarStatus(${laudo.id}, 'Validado')">Validar</button>
-                    <button onclick="gerenciador.removerLaudo(${laudo.id})">Remover</button>
+                    <button class="btn btn-success" onclick="gerenciador.atualizarStatus(${laudo.id}, 'Validado')" style="padding: 5px 10px; font-size: 0.8em;">✓</button>
+                    <button class="btn btn-danger" onclick="gerenciador.atualizarStatus(${laudo.id}, 'Rejeitado')" style="padding: 5px 10px; font-size: 0.8em;">✗</button>
+                    <button class="btn btn-danger" onclick="gerenciador.removerLaudo(${laudo.id})" style="padding: 5px 10px; font-size: 0.8em;">🗑️</button>
                 </td>
             `;
+            
             tbody.appendChild(row);
         });
     }
 
+    filtrarTabela() {
+        const filtro = document.getElementById('filtroTanque').value.toLowerCase();
+        const rows = document.querySelectorAll('#laudosTableBody tr');
+        
+        rows.forEach(row => {
+            const tanque = row.cells[0].textContent.toLowerCase();
+            const combustivel = row.cells[1].textContent.toLowerCase();
+            const batelada = row.cells[2].textContent.toLowerCase();
+            
+            if (tanque.includes(filtro) || combustivel.includes(filtro) || batelada.includes(filtro)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
     mostrarAlerta(tipo, mensagem) {
-        alert(`[${tipo.toUpperCase()}] ${mensagem}`);
+        const alertContainer = document.getElementById('alertContainer');
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${tipo}`;
+        alert.textContent = mensagem;
+        alert.style.display = 'block';
+        
+        alertContainer.appendChild(alert);
+        
+        setTimeout(() => {
+            alert.remove();
+        }, 5000);
+    }
+
+    exportarDados() {
+        const dados = {
+            exportadoEm: new Date().toISOString(),
+            totalLaudos: this.laudos.length,
+            laudos: this.laudos
+        };
+        
+        const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `laudos_combustiveis_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        this.mostrarAlerta('success', 'Dados exportados com sucesso!');
+    }
+
+    limparDados() {
+        if (confirm('Tem certeza que deseja limpar todos os dados? Esta ação não pode ser desfeita.')) {
+            this.laudos = [];
+            this.salvarDados();
+            this.mostrarAlerta('success', 'Todos os dados foram removidos.');
+        }
     }
 }
 
-// Instância global do gerenciador
-const gerenciador = new GerenciadorLaudos();
+// Funções globais
+function exportarDados() {
+    gerenciador.exportarDados();
+}
 
+function limparDados() {
+    gerenciador.limparDados();
+}
+
+// Inicializar o sistema
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const gerenciador = new GerenciadorLaudos();
