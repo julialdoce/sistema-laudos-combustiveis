@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestão de Laudos de Combustíveis</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛢️ Sistema de Gestão de Laudos</h1>
+            <p>Controle e organização de laudos de combustíveis por tanque</p>
+        </div>
+
+        <!-- Alertas -->
+        <div id="alertContainer"></div>
+
+        <!-- Estatísticas -->
+        <div class="card">
+            <h2>📊 Estatísticas Gerais</h2>
+            <div class="stats-container">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalLaudos">0</div>
+                    <div class="stat-label">Total de Laudos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="laudosPendentes">0</div>
+                    <div class="stat-label">Pendentes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="laudosValidados">0</div>
+                    <div class="stat-label">Validados</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="tanquesAtivos">0</div>
+                    <div class="stat-label">Tanques Ativos</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload de Arquivos -->
+        <div class="card">
+            <h2>📤 Importar Laudos</h2>
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-text">
+                    <strong>Clique aqui ou arraste arquivos PDF</strong><br>
+                    Selecione um ou múltiplos arquivos de laudo
+                </div>
+                <input type="file" id="fileInput" class="file-input" multiple accept=".pdf" />
+            </div>
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Processando laudos...</p>
+            </div>
+        </div>
+
+        <!-- Dashboard dos Tanques -->
+        <div class="card">
+            <h2>🏭 Dashboard dos Tanques</h2>
+            <div class="dashboard-grid" id="tankDashboard">
+                <!-- Será preenchido dinamicamente -->
+            </div>
+        </div>
+
+        <!-- Lista de Laudos -->
+        <div class="card">
+            <h2>📋 Todos os Laudos</h2>
+            <div style="margin-bottom: 15px;">
+                <button class="btn" onclick="exportarDados()">📊 Exportar Dados</button>
+                <button class="btn btn-warning" onclick="limparDados()">🗑️ Limpar Dados</button>
+                <input type="text" id="filtroTanque" placeholder="Filtrar por tanque..." style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; margin-left: 10px;">
+            </div>
+            <div class="table-container">
+                <table id="laudosTable">
+                    <thead>
+                        <tr>
+                            <th>Tanque</th>
+                            <th>Combustível</th>
+                            <th>Batelada</th>
+                            <th>Data do Laudo</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="laudosTableBody">
+                        <!-- Será preenchido dinamicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+</body>
+</html>
