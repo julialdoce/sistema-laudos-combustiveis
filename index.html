@@ -17,6 +17,17 @@
         <!-- Alertas -->
         <div id="alertContainer"></div>
 
+        <!-- Instruções -->
+        <div class="card">
+            <div class="instructions">
+                <h3>📋 Como usar o sistema:</h3>
+                <p><strong>1. Upload de PDFs:</strong> Arraste arquivos PDF ou clique na área de upload</p>
+                <p><strong>2. Entrada Manual:</strong> Para emails ou dados que não conseguiu extrair do PDF</p>
+                <p><strong>3. Integração com Email:</strong> Copie o texto do email e cole na área de texto abaixo</p>
+                <p><strong>4. Dados Salvos:</strong> Tudo fica salvo no navegador automaticamente</p>
+            </div>
+        </div>
+
         <!-- Estatísticas -->
         <div class="card">
             <h2>📊 Estatísticas Gerais</h2>
@@ -42,10 +53,10 @@
 
         <!-- Upload de Arquivos -->
         <div class="card">
-            <h2>📤 Importar Laudos</h2>
-            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+            <h2>📤 Importar Laudos PDF</h2>
+            <div class="upload-area" id="uploadArea">
                 <div class="upload-text">
-                    <strong>Clique aqui ou arraste arquivos PDF</strong><br>
+                    <strong>📁 Clique aqui ou arraste arquivos PDF</strong><br>
                     Selecione um ou múltiplos arquivos de laudo
                 </div>
                 <input type="file" id="fileInput" class="file-input" multiple accept=".pdf" />
@@ -53,6 +64,76 @@
             <div class="loading" id="loading">
                 <div class="spinner"></div>
                 <p>Processando laudos...</p>
+            </div>
+        </div>
+
+        <!-- Entrada Manual/Email -->
+        <div class="card">
+            <h2>📧 Entrada Manual de Dados</h2>
+            <div class="manual-input">
+                <div class="form-group">
+                    <label>📝 Cole aqui o texto do email ou dados do laudo:</label>
+                    <textarea id="emailText" placeholder="Cole aqui o conteúdo do email com os dados do laudo...
+
+Exemplo:
+Tanque: T-001
+Combustível: Gasolina Comum
+Batelada: 2024001
+Data: 27/05/2024
+Status: Aprovado
+Observações: Dentro dos parâmetros"></textarea>
+                </div>
+                <button class="btn btn-success" onclick="sistemaLaudos.processarTextoEmail()">🔄 Processar Texto</button>
+            </div>
+
+            <div class="manual-input" style="margin-top: 20px;">
+                <h3>✍️ Entrada Manual Detalhada</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tanque:</label>
+                        <input type="text" id="manualTanque" placeholder="Ex: T-001">
+                    </div>
+                    <div class="form-group">
+                        <label>Combustível:</label>
+                        <select id="manualCombustivel">
+                            <option value="">Selecione...</option>
+                            <option value="Gasolina Comum">Gasolina Comum</option>
+                            <option value="Gasolina Aditivada">Gasolina Aditivada</option>
+                            <option value="Etanol">Etanol</option>
+                            <option value="Diesel S10">Diesel S10</option>
+                            <option value="Diesel S500">Diesel S500</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Batelada:</label>
+                        <input type="text" id="manualBatelada" placeholder="Ex: 2024001">
+                    </div>
+                    <div class="form-group">
+                        <label>Data do Laudo:</label>
+                        <input type="date" id="manualData">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Status:</label>
+                        <select id="manualStatus">
+                            <option value="Pendente">Pendente</option>
+                            <option value="Aprovado">Aprovado</option>
+                            <option value="Reprovado">Reprovado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Volume (litros):</label>
+                        <input type="number" id="manualVolume" placeholder="Ex: 15000">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Observações:</label>
+                    <textarea id="manualObservacoes" placeholder="Observações adicionais..."></textarea>
+                </div>
+                <button class="btn btn-success" onclick="sistemaLaudos.adicionarLaudoManual()">➕ Adicionar Laudo</button>
             </div>
         </div>
 
@@ -68,8 +149,10 @@
         <div class="card">
             <h2>📋 Todos os Laudos</h2>
             <div style="margin-bottom: 15px;">
-                <button class="btn" onclick="exportarDados()">📊 Exportar Dados</button>
-                <button class="btn btn-warning" onclick="limparDados()">🗑️ Limpar Dados</button>
+                <button class="btn btn-success" onclick="sistemaLaudos.exportarDados()">📊 Exportar Excel</button>
+                <button class="btn btn-warning" onclick="sistemaLaudos.limparDados()">🗑️ Limpar Dados</button>
+                <button class="btn" onclick="sistemaLaudos.importarDados()">📤 Importar Dados</button>
+                <input type="file" id="importFile" accept=".json" style="display: none;">
                 <input type="text" id="filtroTanque" placeholder="Filtrar por tanque..." style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; margin-left: 10px;">
             </div>
             <div class="table-container">
@@ -80,6 +163,7 @@
                             <th>Combustível</th>
                             <th>Batelada</th>
                             <th>Data do Laudo</th>
+                            <th>Volume (L)</th>
                             <th>Status</th>
                             <th>Ações</th>
                         </tr>
